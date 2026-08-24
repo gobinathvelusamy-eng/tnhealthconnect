@@ -1,0 +1,231 @@
+{
+  "version": "6.0",
+  "data_api_version": "3.0",
+  "routing_model": {
+    "HOME": [
+      "APPOINTMENT"
+    ],
+    "APPOINTMENT": [
+      "SUCCESS"
+    ]
+  },
+  "screens": [
+    {
+      "id": "HOME",
+      "title": "Welcome",
+      "data": {},
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Book an Appointment"
+          },
+          {
+            "type": "TextBody",
+            "text": "Please tap below to start your booking."
+          },
+          {
+            "type": "Footer",
+            "label": "Start Booking",
+            "on-click-action": {
+              "name": "navigate",
+              "next": {
+                "type": "screen",
+                "name": "APPOINTMENT"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "APPOINTMENT",
+      "title": "Book Appointment",
+      "data": {
+        "department_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": [
+            { "id": "1", "title": "Cardiology", "description": "Heart care" }
+          ]
+        },
+        "location_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "__example__": []
+        },
+        "date_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": []
+        },
+        "time_options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "__example__": []
+        },
+        "is_complete": {
+          "type": "boolean",
+          "__example__": false
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "appointment_form",
+            "children": [
+              {
+                "type": "TextInput",
+                "label": "Patient Name",
+                "name": "patient_name",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "label": "Select Department",
+                "name": "department",
+                "required": true,
+                "data-source": "${data.department_options}",
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "department": "${form.department}"
+                  }
+                }
+              },
+              {
+                "type": "Dropdown",
+                "label": "Select Location",
+                "name": "location",
+                "required": true,
+                "data-source": "${data.location_options}",
+                "enabled": true,
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "department": "${form.department}",
+                    "location": "${form.location}"
+                  }
+                }
+              },
+              {
+                "type": "Dropdown",
+                "label": "Select Date",
+                "name": "date",
+                "required": true,
+                "data-source": "${data.date_options}",
+                "enabled": true,
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "department": "${form.department}",
+                    "location": "${form.location}",
+                    "date": "${form.date}"
+                  }
+                }
+              },
+              {
+                "type": "Dropdown",
+                "label": "Select Time",
+                "name": "time",
+                "required": true,
+                "data-source": "${data.time_options}",
+                "enabled": true,
+                "on-select-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "department": "${form.department}",
+                    "location": "${form.location}",
+                    "date": "${form.date}",
+                    "time": "${form.time}"
+                  }
+                }
+              },
+              {
+                "type": "Footer",
+                "label": "Confirm Booking",
+                "on-click-action": {
+                  "name": "data_exchange",
+                  "payload": {
+                    "patient_name": "${form.patient_name}",
+                    "department": "${form.department}",
+                    "location": "${form.location}",
+                    "date": "${form.date}",
+                    "time": "${form.time}",
+                    "submit_appointment": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "SUCCESS",
+      "title": "Booking Complete",
+      "terminal": true,
+      "data": {
+        "booking_id": { "type": "string", "__example__": "BKG-1234" },
+        "message": { "type": "string", "__example__": "Success" },
+        "error_message": { "type": "string", "__example__": "" }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "TextHeading",
+            "text": "Status"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.message}"
+          },
+          {
+            "type": "TextBody",
+            "text": "${data.error_message}"
+          },
+          {
+            "type": "Footer",
+            "label": "Finish",
+            "on-click-action": {
+              "name": "complete",
+              "payload": {
+                "booking_id": "${data.booking_id}"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

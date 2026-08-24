@@ -1,0 +1,1 @@
+<?php require 'vendor/autoload.php'; \ = require_once 'bootstrap/app.php'; \ = \->make(Illuminate\Contracts\Console\Kernel::class); \->bootstrap(); echo json_encode(Illuminate\Support\Facades\DB::select('SELECT name FROM sqlite_schema WHERE type=''table'''));

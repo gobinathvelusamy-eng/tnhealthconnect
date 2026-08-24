@@ -1,0 +1,130 @@
+/* Append to existing css/styles.css */
+
+/* Navigation Lock States */
+.nav-item.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: transparent !important;
+    color: var(--text-sidebar) !important;
+}
+
+.nav-item.locked:hover {
+    background-color: transparent !important;
+    color: var(--text-sidebar) !important;
+}
+
+.nav-item.locked i.ph-lock {
+    margin-left: auto;
+    font-size: 16px;
+    color: var(--text-secondary);
+}
+
+/* Notifications */
+.top-bar {
+    position: absolute;
+    top: 24px;
+    right: 32px;
+    display: flex;
+    gap: 16px;
+    z-index: 100;
+}
+
+.notification-bell {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    background: var(--danger);
+    border-radius: 50%;
+    border: 2px solid var(--bg-surface);
+    display: none;
+}
+
+.notification-badge.active {
+    display: block;
+}
+
+/* Access Denied */
+.access-denied {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.access-denied i {
+    font-size: 64px;
+    color: var(--border);
+    margin-bottom: 24px;
+}
+
+/* Queue Styles */
+.queue-card {
+    border-left: 4px solid var(--primary);
+}
+.queue-card.serving {
+    border-left-color: var(--success);
+    background: var(--success-bg);
+}
+
+/* Audit Timeline */
+.timeline {
+    position: relative;
+    padding-left: 20px;
+    margin-top: 16px;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+}
+.timeline-item {
+    position: relative;
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid var(--bg-surface);
+}
+.timeline-time {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+.timeline-action {
+    font-weight: 500;
+}
+.timeline-user {
+    color: var(--text-secondary);
+    font-size: 12px;
+}

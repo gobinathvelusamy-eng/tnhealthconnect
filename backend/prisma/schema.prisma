@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// -----------------------------------------
+// AUTHENTICATION & ACCESS
+// -----------------------------------------
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  AuditLog  AuditLog[]
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // ADMIN, EDITOR, VIEWER
+  permissions String     // Granular permissions
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// -----------------------------------------
+// WHATSAPP ACCOUNTS
+// -----------------------------------------
+
+model WhatsappAccount {
+  id                String                 @id @default(uuid())
+  wabaId            String                 @unique // WhatsApp Business Account ID
+  name              String
+  currency          String                 @default("INR")
+  timezone          String                 @default("Asia/Kolkata")
+  phoneNumbers      WhatsappPhoneNumber[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+}
+
+model WhatsappPhoneNumber {
+  id                String           @id @default(uuid())
+  phoneNumberId     String           @unique // Meta Phone Number ID
+  accountId         String
+  account           WhatsappAccount  @relation(fields: [accountId], references: [id])
+  displayNumber     String
+  displayName       String
+  qualityRating     String?
+  status            String?          // CONNECTED, DISCONNECTED, RESTRICTED
+  verifiedName      String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  Flow              Flow[]
+  Conversation      Conversation[]
+  Template          Template[]
+}
+
+// -----------------------------------------
+// TEMPLATES
+// -----------------------------------------
+
+model Template {
+  id              String               @id @default(uuid())
+  name            String
+  category        String               // MARKETING, UTILITY, AUTHENTICATION
+  language        String               @default("en")
+  phoneNumberId   String
+  phoneNumber     WhatsappPhoneNumber  @relation(fields: [phoneNumberId], references: [id])
+  versions        TemplateVersion[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([name, language, phoneNumberId])
+}
+
+model TemplateVersion {
+  id              String    @id @default(uuid())
+  templateId      String
+  template        Template  @relation(fields: [templateId], references: [id])
+  metaTemplateId  String?   // ID returned by Meta upon submission
+  status          String    // DRAFT, PENDING, APPROVED, REJECTED
+  rejectionReason String?
+  components      String      // Header, Body, Footer, Buttons definitions
+  variables       String?     // Mapped variables
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// -----------------------------------------
+// FLOW BUILDER
+// -----------------------------------------
+
+model Flow {
+  id              String               @id @default(uuid())
+  name            String
+  description     String?
+  phoneNumberId   String?
+  phoneNumber     WhatsappPhoneNumber?  @relation(fields: [phoneNumberId], references: [id])
+  status          String               @default("DRAFT") // DRAFT, PUBLISHED, PAUSED, ARCHIVED
+  versions        FlowVersion[]
+  conversations   Conversation[]
+  keywordTriggers KeywordTrigger[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model FlowVersion {
+  id              String    @id @default(uuid())
+  flowId          String
+  flow            Flow      @relation(fields: [flowId], references: [id])
+  versionNumber   Int
+  isPublished     Boolean   @default(false)
+  nodes           String      // React Flow Nodes (Includes configuration)
+  edges           String      // React Flow Edges
+  variables       String?     // Flow-level variables schema definition
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  ConversationSession ConversationSession[]
+}
+
+// -----------------------------------------
+// CONVERSATIONS & SESSIONS
+// -----------------------------------------
+
+model Contact {
+  id              String         @id @default(uuid())
+  whatsappId      String         @unique // The actual phone number with country code
+  name            String?
+  profilePicture  String?
+  patientId       String?        // Link to TN Health Connect Patient ID (from remote API)
+  conversations   Conversation[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Conversation {
+  id              String               @id @default(uuid())
+  contactId       String
+  contact         Contact              @relation(fields: [contactId], references: [id])
+  phoneNumberId   String
+  phoneNumber     WhatsappPhoneNumber  @relation(fields: [phoneNumberId], references: [id])
+  flowId          String?
+  flow            Flow?                @relation(fields: [flowId], references: [id])
+  status          String               @default("ACTIVE") // ACTIVE, RESOLVED, HANDOFF
+  lastActivityAt  DateTime             @default(now())
+  sessions        ConversationSession[]
+  messages        Message[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model ConversationSession {
+  id              String       @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id])
+  flowVersionId   String?
+  flowVersion     FlowVersion? @relation(fields: [flowVersionId], references: [id])
+  currentNodeId   String?      // Reference to the active node in the flow String
+  stateVariables  String?        // Current snapshot of variables (e.g. selected_hospital_id)
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// -----------------------------------------
+// MESSAGES & EVENTS
+// -----------------------------------------
+
+model Message {
+  id              String         @id @default(uuid())
+  conversationId  String
+  conversation    Conversation   @relation(fields: [conversationId], references: [id])
+  metaMessageId   String?        @unique // WAMID
+  direction       String         // INBOUND, OUTBOUND
+  type            String         // TEXT, INTERACTIVE, TEMPLATE, IMAGE, etc.
+  content         String           // The actual message payload
+  status          String         // PENDING, SENT, DELIVERED, READ, FAILED
+  errorMessage    String?
+  events          MessageEvent[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model MessageEvent {
+  id              String    @id @default(uuid())
+  messageId       String
+  message         Message   @relation(fields: [messageId], references: [id])
+  status          String    // DELIVERED, READ, FAILED
+  rawPayload      String      // Webhook payload from Meta
+  createdAt       DateTime  @default(now())
+}
+
+// -----------------------------------------
+// PAYMENTS
+// -----------------------------------------
+
+model Payment {
+  id              String         @id @default(uuid())
+  contactId       String
+  amount          Float
+  currency        String         @default("INR")
+  gateway         String         // RAZORPAY, STRIPE
+  gatewayOrderId  String?        @unique
+  gatewayPaymentId String?       @unique
+  status          String         @default("PENDING") // PENDING, SUCCESS, FAILED, REFUNDED
+  referenceId     String?        // Link to TN Health Connect Appointment ID
+  receipt         String?
+  events          PaymentEvent[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model PaymentEvent {
+  id              String    @id @default(uuid())
+  paymentId       String
+  payment         Payment   @relation(fields: [paymentId], references: [id])
+  status          String
+  rawPayload      String
+  createdAt       DateTime  @default(now())
+}
+
+// -----------------------------------------
+// WEBHOOKS & AUDIT
+// -----------------------------------------
+
+model WebhookEvent {
+  id              String    @id @default(uuid())
+  source          String    // META, RAZORPAY
+  eventType       String
+  payload         String
+  processed       Boolean   @default(false)
+  error           String?
+  createdAt       DateTime  @default(now())
+}
+
+model AuditLog {
+  id              String    @id @default(uuid())
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+  action          String
+  entityType      String    // FLOW, TEMPLATE, ACCOUNT
+  entityId        String
+  details         String?
+  createdAt       DateTime  @default(now())
+}
+
+
+
+// -----------------------------------------
+// KEYWORD TRIGGERS
+// -----------------------------------------
+
+model KeywordTrigger {
+  id              String    @id @default(uuid())
+  keyword         String    @unique
+  flowId          String
+  flow            Flow      @relation(fields: [flowId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}

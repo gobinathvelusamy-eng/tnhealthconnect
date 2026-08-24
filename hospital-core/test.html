@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salem Health Connect | Enterprise Dashboard</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons (Phosphor Icons) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles-v2.css">
+    <link rel="stylesheet" href="css/whatsapp.css">
+    
+    <!-- Scripts (Deferred) -->
+    <script src="js/store.js" defer></script>
+    <script src="js/whatsapp.js" defer></script>
+    <script src="js/views/super-admin.js" defer></script>
+    <script src="js/views/hospital.js" defer></script>
+    <script src="js/views/reception.js" defer></script>
+    <script src="js/views/doctor.js" defer></script>
+    <script src="js/views/pharmacy.js" defer></script>
+    <script src="js/views/courier.js" defer></script>
+    <script src="js/views/architecture.js" defer></script>
+    <script src="js/app.js" defer></script>
+<script id="browser-logger-active">
+(function() {
+    const ENDPOINT = 'http://new-hospital-manage.test/_boost/browser-logs';
+    const logQueue = [];
+    let flushTimeout = null;
+    const captureTypes = ["error","warning","info","log","debug","table"];
+
+    console.log('🔍 Browser logger active (MCP server detected). Posting to: ' + ENDPOINT);
+
+    // Store original console methods
+    const originalConsole = {
+        log: console.log,
+        debug: console.debug,
+        info: console.info,
+        error: console.error,
+        warn: console.warn,
+        table: console.table
+    };
+
+    // Helper to safely stringify values
+    function safeStringify(obj) {
+        const seen = new WeakSet();
+        return JSON.stringify(obj, (key, value) => {
+            if (typeof value === 'object' && value !== null) {
+                if (seen.has(value)) return '[Circular]';
+                seen.add(value);
+            }
+            if (value instanceof Error) {
+                return {
+                    name: value.name,
+                    message: value.message,
+                    stack: value.stack
+                };
+            }
+            return value;
+        });
+    }
+
+    // Normalize log type for consistency (e.g., 'warn' to 'warning')
+    function normalizeType(type) {
+        return type === 'warn' ? 'warning' : type;
+    }
+
+    // Determine if a log type should be captured based on configured levels
+    function shouldCapture(type) {
+        return captureTypes.includes(normalizeType(type));
+    }
+
+    // Batch and send logs
+    function flushLogs() {
+        if (logQueue.length === 0) return;
+
+        const batch = logQueue.splice(0, logQueue.length);
+
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ logs: batch })
+        }).catch(err => {
+            // Silently fail to avoid infinite loops
+            originalConsole.error('Failed to send logs:', err);
+        });
+    }
+
+    // Debounced flush (100ms)
+    function scheduleFlush() {
+        if (flushTimeout) clearTimeout(flushTimeout);
+        flushTimeout = setTimeout(flushLogs, 100);
+    }
+
+    // Intercept console methods
+    ['log', 'debug', 'info', 'error', 'warn', 'table'].forEach(method => {
+        console[method] = function(...args) {
+            // Call original method
+            originalConsole[method].apply(console, args);
+
+            // Capture log data
+            try {
+                if (!shouldCapture(method)) {
+                    return;
+                }
+
+                logQueue.push({
+                    type: method,
+                    timestamp: new Date().toISOString(),
+                    data: args.map(arg => {
+                        try {
+                            return typeof arg === 'object' ? JSON.parse(safeStringify(arg)) : arg;
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }),
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            } catch (e) {
+                // Fail silently
+            }
+        };
+    });
+
+    // Global error handlers for uncaught errors
+    const originalOnError = window.onerror;
+    window.onerror = function boostErrorHandler(errorMsg, url, lineNumber, colNumber, error) {
+        try {
+            if (shouldCapture('error')) {
+                logQueue.push({
+                    type: 'uncaught_error',
+                    timestamp: new Date().toISOString(),
+                    data: [{
+                        message: errorMsg,
+                        filename: url,
+                        lineno: lineNumber,
+                        colno: colNumber,
+                        error: error ? {
+                            name: error.name,
+                            message: error.message,
+                            stack: error.stack
+                        } : null
+                    }],
+                    url: window.location.href,
+                    userAgent: navigator.userAgent
+                });
+
+                scheduleFlush();
+            }
+
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Call original handler if it exists
+        if (originalOnError && typeof originalOnError === 'function') {
+            return originalOnError(errorMsg, url, lineNumber, colNumber, error);
+        }
+
+        // Let the error continue to propagate
+        return false;
+    }
+    window.addEventListener('error', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'window_error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error ? {
+                        name: event.error.name,
+                        message: event.error.message,
+                        stack: event.error.stack
+                    } : null
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the error continue to propagate
+        return false;
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+        try {
+            if (!shouldCapture('error')) {
+                return false;
+            }
+
+            logQueue.push({
+                type: 'error',
+                timestamp: new Date().toISOString(),
+                data: [{
+                    message: 'Unhandled Promise Rejection',
+                    reason: event.reason instanceof Error ? {
+                        name: event.reason.name,
+                        message: event.reason.message,
+                        stack: event.reason.stack
+                    } : event.reason
+                }],
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            });
+
+            scheduleFlush();
+        } catch (e) {
+            // Fail silently
+        }
+
+        // Let the rejection continue to propagate
+        return false;
+    });
+
+    // Flush on page unload
+    window.addEventListener('beforeunload', () => {
+        if (logQueue.length > 0) {
+            navigator.sendBeacon(ENDPOINT, JSON.stringify({ logs: logQueue }));
+        }
+    });
+})();
+</script>
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="ph-fill ph-heartbeat"></i>
+                    <span>Salem Health Connect</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-group">
+                    <div class="nav-group-title">Platform</div>
+                    <a href="#" class="nav-item active" data-view="super-admin">
+                        <i class="ph ph-shield-star"></i>
+                        <span>Super Admin</span>
+                    </a>
+                    <a href="#" class="nav-item" data-view="integrations">
+                        <i class="ph ph-plugs"></i>
+                        <span>Integrations</span>
+                    </a>
+                    <a href="#" class="nav-item" data-view="architecture">
+                        <i class="ph ph-tree-structure"></i>
+                        <span>System Architecture</span>
+                    </a>
+                </div>
+                
+                <div class="nav-group">
+                    <div class="nav-group-title">Hospital Portal <span style="font-size: 10px; color: var(--text-secondary); margin-left: 4px;">(ABC Hospital)</span></div>
+                    <a href="#" class="nav-item" data-view="hospital" data-feature="Dashboard">
+                        <i class="ph ph-hospital"></i>
+                        <span>Hospital Admin</span>
+                    </a>
+                    <a href="#" class="nav-item" data-view="reception" data-feature="Reception">
+                        <i class="ph ph-users"></i>
+                        <span>Reception</span>
+                    </a>
+                    <a href="#" class="nav-item" data-view="doctor" data-feature="Doctors">
+                        <i class="ph ph-stethoscope"></i>
+                        <span>Doctor</span>
+                    </a>
+                </div>
+                
+                <div class="nav-group">
+                    <div class="nav-group-title">Services</div>
+                    <a href="#" class="nav-item" data-view="pharmacy" data-feature="Pharmacy">
+                        <i class="ph ph-pill"></i>
+                        <span>Pharmacy</span>
+                        <i class="ph ph-lock" style="display: none;"></i>
+                    </a>
+                    <a href="#" class="nav-item" data-view="courier" data-feature="Courier">
+                        <i class="ph ph-truck"></i>
+                        <span>Courier</span>
+                        <i class="ph ph-lock" style="display: none;"></i>
+                    </a>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar">SA</div>
+                    <div class="user-info">
+                        <span class="user-name">System Admin</span>
+                        <span class="user-role">Super Admin</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Templates for dynamic views -->
+        <div id="templates" style="display: none;">
+            <!-- Integrations View -->
+            <div id="view-integrations" class="view-section">
+                <div class="view-header">
+                    <h2>Platform Integrations</h2>
+                    <p>Easily copy and paste your API keys to connect Salem Health Connect to external services like WhatsApp and Payments. No coding required.</p>
+                </div>
+
+                <div class="card p-6" style="margin-bottom: 24px; max-width: 800px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+                        <i class="ph ph-whatsapp-logo" style="font-size: 32px; color: #25D366;"></i>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">WhatsApp Cloud API Settings</h3>
+                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-secondary);">Manage the credentials used by the ConversationEngine to send and receive WhatsApp messages.</p>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; gap: 16px;">
+                        <div class="form-group">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.9rem;">WhatsApp Access Token</label>
+                            <input type="password" id="wa-access-token" placeholder="EAAIxxx..." style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; background: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.9rem;">WhatsApp Phone Number ID</label>
+                            <input type="text" id="wa-phone-id" placeholder="104xxxxxxxxxx" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; background: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.9rem;">Webhook Verify Token (Set this in Meta Developer Portal)</label>
+                            <input type="text" id="wa-verify-token" placeholder="salem_health_secure_token_123" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; background: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                            <button id="btn-save-integrations" class="btn btn-primary" style="padding: 12px 24px;">
+                                <i class="ph ph-floppy-disk"></i> Save WhatsApp Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Dashboard Content -->
+        <main class="main-content" id="main-content">
+            <!-- Dynamic view content gets injected here -->
+        </main>
+        
+        <!-- Top Bar Notification -->
+        <div class="top-bar">
+            <div class="notification-bell" id="notification-bell">
+                <i class="ph ph-bell"></i>
+                <div class="notification-badge" id="notification-badge"></div>
+            </div>
+        </div>
+
+        <!-- WhatsApp Simulator Panel -->
+        <aside class="whatsapp-panel">
+            <div class="whatsapp-header">
+                <div class="wa-user-info">
+                    <div class="wa-logo-wrapper">
+                        <i class="ph-fill ph-whatsapp-logo"></i>
+                    </div>
+                    <div class="wa-contact-details">
+                        <span class="wa-name">Salem Health Bot</span>
+                        <span class="wa-status">Online</span>
+                    </div>
+                </div>
+                <div class="wa-actions">
+                    <i class="ph ph-video-camera"></i>
+                    <i class="ph ph-phone"></i>
+                    <i class="ph ph-dots-three-vertical"></i>
+                </div>
+            </div>
+            
+            <div class="whatsapp-chat" id="whatsapp-chat-container">
+                <div class="wa-date">Today</div>
+                <!-- Chat messages injected here -->
+            </div>
+            
+            <div class="whatsapp-input-area">
+                <i class="ph ph-smiley"></i>
+                <i class="ph ph-paperclip"></i>
+                <div class="wa-input-pill" id="wa-input-trigger">
+                    <span class="placeholder">Message</span>
+                </div>
+                <div class="wa-send-btn">
+                    <i class="ph-fill ph-microphone"></i>
+                </div>
+            </div>
+            
+            <!-- Hidden action sheet for choices -->
+            <div class="wa-action-sheet" id="wa-action-sheet">
+                <!-- Action buttons rendered here dynamically -->
+            </div>
+        </aside>
+
+    </div>
+</body>
+</html>
