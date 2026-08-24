@@ -36,3 +36,6 @@ hospital-core/storage/framework/views/*
 Thumbs.db
 .idea/
 .vscode/
+
+zrok.exe
+backend/zrok.exe
