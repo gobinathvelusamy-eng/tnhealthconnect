@@ -7,6 +7,7 @@ const prisma = new PrismaClient();
 const LARAVEL_API = 'http://localhost:8000/api';
 
 interface FlowSession {
+    waId?: string;
     flowId: string;
     flowVersionId: string;
     nodes: any[];
@@ -81,6 +82,7 @@ export class FlowEngine {
                             const firstNodeId = firstEdge ? firstEdge.target : startNode?.id;
 
                             session = {
+                                waId,
                                 flowId: trigger.flow.id,
                                 flowVersionId: latestVersion.id,
                                 nodes,
@@ -609,8 +611,11 @@ export class FlowEngine {
             if (input === 'terms_decline' || input.toLowerCase().includes('decline') || input.toLowerCase().includes('cancel') || input.toLowerCase().includes('no')) {
                 const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
                 const token = process.env.WHATSAPP_ACCESS_TOKEN!;
-                whatsappService.sendTextMessage(phoneId, token, session.waId, '❌ *Booking Cancelled*\n\nYou have declined the Terms & Conditions. Your appointment request has been cancelled.\n\nReply *Hi* whenever you wish to restart.');
-                activeSessions.delete(session.waId);
+                const targetWaId = session.waId || '';
+                if (targetWaId) {
+                    whatsappService.sendTextMessage(phoneId, token, targetWaId, '❌ *Booking Cancelled*\n\nYou have declined the Terms & Conditions. Your appointment request has been cancelled.\n\nReply *Hi* whenever you wish to restart.');
+                    activeSessions.delete(targetWaId);
+                }
                 return;
             }
             session.variables.terms_agreed = 'YES';
