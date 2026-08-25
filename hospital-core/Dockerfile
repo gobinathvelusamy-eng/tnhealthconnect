@@ -1,4 +1,4 @@
-FROM php:8.3-cli
+FROM php:8.4-cli
 
 WORKDIR /var/www/html
 
@@ -23,7 +23,7 @@ COPY . .
 RUN cp .env.production .env 2>/dev/null || echo "APP_KEY=base64:Eo5rCF952OYqUu26coZw0vva2JqRQ8rJXKiLvcYAR80=" > .env
 
 # Install PHP dependencies
-RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction --no-scripts --ignore-platform-req=ext-zip
 
 # Set permissions
 RUN chmod -R 777 storage bootstrap/cache
