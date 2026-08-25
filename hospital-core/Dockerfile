@@ -1,15 +1,16 @@
-FROM php:8.2-cli
+FROM php:8.3-cli
 
 WORKDIR /var/www/html
 
-# Install system dependencies
+# Install system dependencies + required PHP extensions
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     zip \
     unzip \
+    libzip-dev \
     libsqlite3-dev \
-    && docker-php-ext-install pdo pdo_sqlite \
+    && docker-php-ext-install pdo pdo_sqlite zip \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
@@ -18,11 +19,11 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Copy project files
 COPY . .
 
-# Use production env for build
+# Create .env for build stage
 RUN cp .env.production .env 2>/dev/null || echo "APP_KEY=base64:Eo5rCF952OYqUu26coZw0vva2JqRQ8rJXKiLvcYAR80=" > .env
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
 # Set permissions
 RUN chmod -R 777 storage bootstrap/cache
