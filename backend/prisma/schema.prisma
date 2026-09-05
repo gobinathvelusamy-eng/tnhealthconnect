@@ -26,7 +26,7 @@ model User {
 model Role {
   id          String   @id @default(uuid())
   name        String   @unique // ADMIN, EDITOR, VIEWER
-  permissions String     // Granular permissions
+  permissions String   @db.Text  // Granular permissions
   users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -89,8 +89,8 @@ model TemplateVersion {
   metaTemplateId  String?   // ID returned by Meta upon submission
   status          String    // DRAFT, PENDING, APPROVED, REJECTED
   rejectionReason String?
-  components      String      // Header, Body, Footer, Buttons definitions
-  variables       String?     // Mapped variables
+  components      String    @db.Text  // Header, Body, Footer, Buttons definitions
+  variables       String?   @db.Text  // Mapped variables
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
@@ -119,9 +119,9 @@ model FlowVersion {
   flow            Flow      @relation(fields: [flowId], references: [id])
   versionNumber   Int
   isPublished     Boolean   @default(false)
-  nodes           String      // React Flow Nodes (Includes configuration)
-  edges           String      // React Flow Edges
-  variables       String?     // Flow-level variables schema definition
+  nodes           String    @db.LongText  // React Flow Nodes (Includes configuration)
+  edges           String    @db.LongText  // React Flow Edges
+  variables       String?   @db.Text      // Flow-level variables schema definition
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   ConversationSession ConversationSession[]
@@ -165,7 +165,7 @@ model ConversationSession {
   flowVersionId   String?
   flowVersion     FlowVersion? @relation(fields: [flowVersionId], references: [id])
   currentNodeId   String?      // Reference to the active node in the flow String
-  stateVariables  String?        // Current snapshot of variables (e.g. selected_hospital_id)
+  stateVariables  String?   @db.Text  // Current snapshot of variables
   isActive        Boolean      @default(true)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -182,9 +182,9 @@ model Message {
   metaMessageId   String?        @unique // WAMID
   direction       String         // INBOUND, OUTBOUND
   type            String         // TEXT, INTERACTIVE, TEMPLATE, IMAGE, etc.
-  content         String           // The actual message payload
+  content         String         @db.Text  // The actual message payload
   status          String         // PENDING, SENT, DELIVERED, READ, FAILED
-  errorMessage    String?
+  errorMessage    String?        @db.Text
   events          MessageEvent[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -195,7 +195,7 @@ model MessageEvent {
   messageId       String
   message         Message   @relation(fields: [messageId], references: [id])
   status          String    // DELIVERED, READ, FAILED
-  rawPayload      String      // Webhook payload from Meta
+  rawPayload      String    @db.Text  // Webhook payload from Meta
   createdAt       DateTime  @default(now())
 }
 
@@ -224,7 +224,7 @@ model PaymentEvent {
   paymentId       String
   payment         Payment   @relation(fields: [paymentId], references: [id])
   status          String
-  rawPayload      String
+  rawPayload      String    @db.Text
   createdAt       DateTime  @default(now())
 }
 
@@ -236,9 +236,9 @@ model WebhookEvent {
   id              String    @id @default(uuid())
   source          String    // META, RAZORPAY
   eventType       String
-  payload         String
+  payload         String    @db.LongText
   processed       Boolean   @default(false)
-  error           String?
+  error           String?   @db.Text
   createdAt       DateTime  @default(now())
 }
 
